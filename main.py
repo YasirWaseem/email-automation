@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 import datetime
 import json
 import os
+import re
 
 # ---------------------------- LOGIC: Email Sending and CSV Handling ---------------------------- #
 
@@ -21,7 +22,7 @@ class EmailSender:
         self.sender_email = ""
         self.sender_password = ""
         self.email_subject = ""
-        self.email_body = ""
+        self.email_body = "Hii ashwin"
         self.csv_file = None
         self.df = None
         self.sent_today = self.load_email_count()
@@ -33,13 +34,40 @@ class EmailSender:
     def load_csv(self, file_path):
         try:
             df = pd.read_csv(file_path)
-            if "email" not in df.columns or "name" not in df.columns:
-                return None, "CSV must contain 'email' and 'name' columns."
+        
+            # Normalize column names to lowercase
+            df.columns = [col.lower() for col in df.columns]
+            print("Normalized columns:", df.columns)
+        
+            # Define regex patterns
+            pattern_hr = re.compile(r"\b(hr|head\s*of\s*recruiter|hr manager|name of hr manager)\b", re.IGNORECASE)
+            pattern_email = re.compile(r"\b(email id|email\s*name of email)\b", re.IGNORECASE)
+        
+            # Standard column names
+            real_hr_name = "name"
+            real_email_name = "email"
+        
+            # Rename columns based on patterns
+            new_columns_list = [
+            real_hr_name if pattern_hr.search(col) else 
+            real_email_name if pattern_email.search(col) else 
+            col 
+            for col in df.columns
+        ]
+        
+            df.columns = new_columns_list
+            print("Updated columns:", df.columns)
+        
+            # Validate required columns
+            if real_email_name not in df.columns or real_hr_name not in df.columns:
+                return None, "CSV must contain 'Email ID' and 'Name of HR Manager' columns."
+        
             self.df = df
             self.csv_file = file_path
             return df, None
+    
         except Exception as e:
-            return None, str(e)
+            return None, f"Error loading CSV: {str(e)}"
 
     def set_email_content(self, subject, body):
         self.email_subject = subject
@@ -197,8 +225,22 @@ class EmailPage(tk.Frame):
 
         tk.Label(self, text="Email Body:", font=("Arial", 14)).pack(pady=10)
 
-        self.body_text = scrolledtext.ScrolledText(self, width=60, height=10)
+        self.body_text = scrolledtext.ScrolledText(self,wrap=tk.WORD, width=60, height=10)
         self.body_text.pack(pady=5)
+        self.body_text.insert(tk.INSERT, """Dear {name},
+                              
+                              
+                              
+                                                       
+Best Regards,
+Praveen Kumar
+Joint Training and Placement officer Training & Placement Cell
+B.P.Mandal College of Engineering,
+Madhepura,Bihar
+Mob. :8789382669
+Mail :tpo.bpmce2016@gmail.com
+College website: https://www.bpmcemadhepura.org/
+t&p website: https://www.bpmcemadhepura.org/training-and-placement/tp-cell """)
 
         self.next_btn = ttk.Button(self, text="Next", command=self.save_email_content)
         self.next_btn.pack(pady=20)
